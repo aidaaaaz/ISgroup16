@@ -4,78 +4,57 @@ const { MongoClient, ServerApiVersion } = require('mongodb');
 const jwt = require('jsonwebtoken');
 const bodyParser = require('body-parser');
 const { ObjectId } = require('mongodb'); // Import ObjectId
-const port = 4000;
+//const port = 2000;
 
 const swaggerJsdoc = require('swagger-jsdoc');
 const swaggerUi = require('swagger-ui-express');
+const MongoURI = process.env.MONGODB_URI
 
-// Swagger set up
+const port = process.env.PORT || 2000 ; 
+
+app.use(bodyParser.json());
+
+// Swagger definition
 const swaggerOptions = {
-  definition: {
-    openapi: '3.0.0',
+  swaggerDefinition: {
+    openapi: '3.1.0',
     info: {
-      title: 'Hostel Visitor Management API',
+      title: 'Apartment Visitor Management API',
       version: '1.0.0',
-      description: 'This is a simple CRUD API application made with Express and documented with Swagger',
+      description: 'API documentation for Apartment Visitor Management',
     },
     servers: [
       {
-        url: `http://localhost:${port}`,
+        url: `https://ishostel.azurewebsites.net/`, // Update the server URL
+        description: 'Visitor Management',
       },
     ],
     components: {
       securitySchemes: {
-        jwt:{
-					type: 'http',
-					scheme: 'bearer',
-					in: "header",
-					bearerFormat: 'JWT'
+        jwt: {
+          type: 'http',
+          scheme: 'bearer',
+          in: 'header',
+          bearerFormat: 'JWT',
         },
       },
     },
-		security:[{
-			"jwt": []
-  }]
-},
-  apis: ['./index.js'], // path to your API routes
-
+    security: [
+      {
+        jwt: [],
+      },
+    ],
+  },
+  apis: ['./index.js'], // Update this to match your actual route files
 };
-
 
 
 const swaggerDocs = swaggerJsdoc(swaggerOptions);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
-
-//middleware
-const verifyToken = (req, res, next) => {
-  const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    const token = authHeader.substring(7, authHeader.length); // "Bearer " is 7 characters
-    //... (rest of your verification logic)
-  } else {
-    return res.status(403).json({ error: 'No token provided' });
-  }
-
-  const token = authHeader.split(' ')[1]; // Expecting "Bearer TOKEN_STRING"
-  try {
-    const decoded = jwt.verify(token, secret);
-    req.user = decoded;
-  } catch (error) {
-    return res.status(401).json({ error: 'Failed to authenticate token' });
-  }
-
-  next();
-};
-
-
-// Secret key for JWT signing and encryption
-const secret = 'your-secret-key'; // Store this securely
-
-app.use(bodyParser.json());
-
-
-const uri = "mongodb://FifeeZaheed:keima@ac-86lqujp-shard-00-00.cbn8onp.mongodb.net:27017,ac-86lqujp-shard-00-01.cbn8onp.mongodb.net:27017,ac-86lqujp-shard-00-02.cbn8onp.mongodb.net:27017/?replicaSet=atlas-ir7cjs-shard-0&ssl=true&authSource=admin";
+///connect to Mondodb
+//const { MongoClient, ServerApiVersion, Admin } = require('mongodb');
+const uri = "mongodb+srv://aida:test123@cluster0.bx9feas.mongodb.net/";
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
   serverApi: {
@@ -84,100 +63,143 @@ const client = new MongoClient(uri, {
     deprecationErrors: true,
   }
 });
-async function run() {
-  try {
-    // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
-    // Send a ping to confirm a successful connection
-    await client.db("HOSTELVISITORMANAGEMENT").command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
-  } finally {
-    // Ensures that the client will close when you finish/error
-    //await client.close();
+
+
+const verifyToken = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(403).json({ error: 'No token provided' });
   }
-}
-run().catch(console.dir);
-let db;
-let Visitorregistration;
-let adminuser;
 
+  const token = authHeader.split(' ')[1]; // Expecting "Bearer TOKEN_STRING"
 
+  try {
+    const decoded = jwt.verify(token, secret);
+    req.user = decoded;
+    next();
+  } catch (error) {
+    return res.status(401).json({ error: 'Failed to authenticate token' });
+  }
+};
 
-// Connect to MongoDB and initialize collections
-client.connect()
-  .then(() => {
-    console.log('Connected to MongoDB');
-    db = client.db('HOSTELVISITORMANAGEMENT');
-    
+// Middleware to log raw request body
+app.use((req, res, next) => {
+  let data = '';
 
-  // Initialize collections after establishing the connection
-  Visitorregistration = db.collection('visitors');
-  adminuser = db.collection('admins');
+  req.on('data', (chunk) => {
+    data += chunk;
+  });
 
-
-  // Now you can safely start your server here, after the DB connection is established
-  app.listen(port, () => {
-    console.log(`Server is running on http://localhost:${port}`);
+  req.on('end', () => {
+    console.log('Raw Request Body:', data);
+    next();
   });
 });
 
+// Secret key for JWT signing and encryption
+const secret = 'your-secret-key'; // Store this securely
+
+app.use(bodyParser.json());
+
+
+async function run() {
+    try {
+      // Connect the client to the server (optional starting in v4.7)
+      await client.connect();
+      // Send a ping to confirm a successful connection
+      await client.db("ApartmentVisitorManagement").command({ ping: 1 });
+      console.log("MongoDB is connected");
+    } finally {
+      // Ensures that the client will close when you finish/error
+      // You should handle the closing of the client here
+      // await client.close();
+    }
+  }
+  
+  //run().catch(console.dir);
+  
+run().catch(console.dir);
+
+const db = client.db("ApartmentVisitorManagement");
+const Visitorregistration = db.collection('Visitor');
+const adminuser = db.collection('Admin');
+const collectionsecurity = db.collection('Security');
+const visitorPasses = db.collection('VisitorPass'); // Use the correct collection name
+
+// Serve Swagger UI
+//app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
 // In-memory data storage (replace with a database in production)
-const visitors = [];
-const admins = [];
+const visitor = [];
+const admin = [];
 
 app.use(express.json());
 
+/**
+ * @swagger
+ * tags:
+ *   - name: User
+ *     description: Operations related to regular users
+ *   - name: Admin
+ *     description: Operations related to administrators
+ *   - name: Visitor
+ *     description: Operations related to visitors
+ */
 
 /**
  * @swagger
  * /registeradmin:
  *   post:
- *     summary: Register a new admin account
- *     tags: [Admin]
+ *     summary: Register admin
+ *     tags:
+ *       - Admin
  *     requestBody:
+ *       description: Admin information
  *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
- *             required:
- *               - username
- *               - password
  *             properties:
  *               username:
  *                 type: string
+ *                 description: Admin username
  *               password:
  *                 type: string
+ *                 description: Admin password
  *     responses:
- *       201:
- *         description: Admin registered successfully
- *       400:
- *         description: Admin already exists
+ *       '200':
+ *         description: Admins registered successfully
+ *       '500':
+ *         description: Internal Server Error
  */
 
 
-// Admin Register New Account
-app.post('/registeradmin', async (req, res) => {
-  const admins = db.collection('admins');
-  const { username, password } = req.body;
+// post to register admin
+app.post('/registeradmin', (req, res) => {
+  const admins = req.body;
 
-  const existingAdmin = await admins.findOne({ username });
-  if (existingAdmin) {
-    return res.status(400).json({ error: 'Admin already exists' });
-  }
+  console.log('Received request to register admins:', admins);
 
-  await admins.insertOne({ username, password });
-  res.status(201).json({ message: 'Admin registered successfully' });
+  adminuser.insertOne(admins, (err, result) => {
+      if (err) {
+          console.error('Error inserting admins:', err);
+          res.status(500).send('Internal Server Error');
+          return;
+      }
+      console.log('Admins registered:', result.insertedIds);
+      res.send('Admins registered successfully!');
+  });
 });
-
 
 /**
  * @swagger
- * /login:
+ * /loginadmin:
  *   post:
  *     summary: Admin login
- *     tags: [Admin]
+ *     tags:
+ *       - Admin
  *     requestBody:
  *       required: true
  *       content:
@@ -193,98 +215,128 @@ app.post('/registeradmin', async (req, res) => {
  *               password:
  *                 type: string
  *     responses:
- *       200:
+ *       '200':
  *         description: Admin authenticated successfully
- *       401:
+ *       '401':
  *         description: Invalid username or password
  */
 
 
-// Admin Login
-app.post('/login', async (req, res) => {
-  const admins = db.collection('admins');
+ // Route to login admin
+ app.post('/login', async (req, res) => {
   const { username, password } = req.body;
-
-  const admin = await admins.findOne({ username, password });
-  if (!admin) {
-    return res.status(401).json({ error: 'Invalid username or password' });
+  const adminUser = await adminuser.findOne({ username, password }); // Rename variable
+  if (adminUser) {
+    console.log("Login Successful! Admin User:", adminUser);
+    let token1 = generateToken1(adminUser);
+    console.log("Token sent:", token1);
+    res.send(token1);
+  } else {
+    console.log("Invalid username or password");
+    res.send("Invalid username or password");
   }
-
-  // Create token if the admin was found
-  const token = jwt.sign({ userId: admin._id }, secret, { expiresIn: '1h' });
-
-  res.json({ message: 'Admin authenticated successfully', 
-  accessToken: token });
 });
-
 
 /**
  * @swagger
  * /registervisitor:
  *   post:
  *     summary: Register a new visitor
- *     tags: [Visitor]
+ *     description: Register a visitor into MongoDB (requires admin authentication).
+ *     tags:
+ *       - Visitor
  *     security:
- *       - bearerAuth: []
+ *       - jwt: []  # Use the correct security scheme name if different
  *     requestBody:
+ *       description: Visitor information
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/Visitor'
+ *             type: object
+ *             properties:
+ *               Name:
+ *                 type: string
+ *                 description: Visitor's name
+ *               Phone_Number:
+ *                 type: string
+ *                 description: Visitor's phone number
+ *               Address:
+ *                 type: string
+ *                 description: Visitor's address
+ *               Floor_Wing:
+ *                 type: string
+ *                 description: Floor and wing information
+ *               Whom_to_meet:
+ *                 type: string
+ *                 description: Person the visitor intends to meet
+ *               Reason_to_meet:
+ *                 type: string
+ *                 description: Reason for the visit
  *     responses:
- *       201:
+ *       '200':
  *         description: Visitor registered successfully
- *       500:
- *         description: Error occurred while registering the visitor
+ *       '500':
+ *         description: Internal Server Error
  */
 
+ //to register a visitor into mongodb only admin
+ app.post('/registervisitor', verifyToken1, (req, res) => {
 
-// Protected route for registering a visitor - token required
-app.post('/registervisitor', verifyToken, async (req, res) => {
-  try {
-    const visitors = db.collection('visitors');
-    const { username, password, Name, Age, Gender, Address, Zipcode, Relation } = req.body;
+  let visitor = {
+    Name: req.body.Name,
+    Phone_Number: req.body.Phone_Number,
+    Address: req.body.Address,
+    Floor_Wing: req.body.Floor_Wing,
+    Whom_to_meet: req.body.Whom_to_meet,
+    Reason_to_meet: req.body.Reason_to_meet
+  }; 
+ 
+  Visitorregistration.insertOne(visitor, (err, result) => {
+    if (err) {
+      console.error('Error inserting data:', err);
+      res.status(500).send('Internal Server Error');
+    }
+    else{
+    console.log('Visitor registered:', result.insertedId);
+    }
+    
 
-    await visitors.insertOne({ username, password, Name, Age, Gender, Address, Zipcode, Relation });
-    res.status(201).json({ message: 'Visitor registered successfully' });
-  } catch (error) {
-    res.status(500).json({ error: 'An error occurred while registering the visitor' });
-  }
+  });
+  res.send('Visitor registered successfully!');
 });
 
 /**
  * @swagger
  * /viewvisitor:
  *   get:
- *     summary: View all visitors
- *     tags: [Visitor]
+ *     summary: Retrieve all visitor information
+ *     description: Retrieve information about all visitors (requires admin authentication).
+ *     tags:
+ *       - Visitor
  *     security:
- *       - bearerAuth: []
+ *       - jwt: []  # Use the correct security scheme name if different
  *     responses:
- *       200:
- *         description: List of all visitors
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/Visitor'
- *       500:
- *         description: Error occurred while fetching visitors
+ *       '200':
+ *         description: Successfully retrieved visitor information
+ *       '500':
+ *         description: Internal Server Error
  */
+app.get('/viewvisitor', verifyToken, (req, res) => {
+  // Implementation details...
+});
 
 
-// Protected route for viewing visitors - token required
-app.get('/viewvisitor', verifyToken, async (req, res) => {
-  try {
-    const visitors = db.collection('visitors');
-    const results = await visitors.find().toArray();
-
-    res.json(results);
-  } catch (error) {
-    res.status(500).json({ error: 'An error occurred while fetching visitors' });
-  }
+// Updated /viewvisitor endpoint
+app.get('/viewvisitor', verifyToken, (req, res) => {
+  Visitorregistration.find().toArray()
+    .then(Visitor => {
+      res.json(Visitor);
+    })
+    .catch(error => {
+      console.error('Error retrieving visitor information:', error);
+      res.status(500).send('An error occurred while retrieving visitor information');
+    });
 });
 
 
@@ -293,240 +345,199 @@ app.get('/viewvisitor', verifyToken, async (req, res) => {
  * /issuevisitorpass:
  *   post:
  *     summary: Issue a visitor pass
- *     tags: [Pass]
+ *     description: Issue a visitor pass and record the information in the VisitorPass collection (requires admin authentication).
+ *     tags:
+ *       - Visitor
  *     security:
- *       - bearerAuth: []
+ *       - jwt: []  # Use the correct security scheme name if different
  *     requestBody:
+ *       description: Information required to issue a visitor pass
  *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
- *             required:
- *               - visitorId
- *               - issuedBy
- *               - validUntil
  *             properties:
  *               visitorId:
  *                 type: string
- *               issuedBy:
- *                 type: string
+ *                 description: ID of the visitor for whom the pass is issued
  *               validUntil:
  *                 type: string
  *                 format: date
+ *                 description: Date until which the pass is valid
  *     responses:
- *       201:
+ *       '201':
  *         description: Visitor pass issued successfully
- *       500:
- *         description: Error occurred while issuing the pass
+ *       '500':
+ *         description: Internal Server Error
  */
 
-
 // Admin issue visitor pass
-// Admin Issue Visitor Pass
 app.post('/issuevisitorpass', verifyToken, async (req, res) => {
-  const { visitorId, issuedBy, validUntil } = req.body;
+    const { visitorId, validUntil } = req.body;
 
-  try {
-    const visitorPasses = db.collection('visitorpasses');
+    try {
+        const db = client.db("ApartmentVisitorManagement");
+        const visitorPasses = db.collection('VisitorPass'); // Use the correct collection name
 
-    const newPass = {
-      visitorId,
-      issuedBy,
-      validUntil,
-      issuedAt: new Date(),
-    };
+        // Get user information from the token
+        const { username } = req.user;
+        
+        console.log('Issued By:', username);
 
-    await visitorPasses.insertOne(newPass);
-    res.status(201).json({ message: 'Visitor pass issued successfully' });
-  } catch (error) {
-    console.error('Issue Pass Error:', error.message);
-    res.status(500).json({ error: 'An error occurred while issuing the pass', details: error.message });
-  }
+        const newPass = {
+            visitorId,
+            issuedBy: username, // Set issuedBy based on the user from the token
+            validUntil,
+        };
+
+        await visitorPasses.insertOne(newPass);
+        res.status(201).json({ message: 'Visitor pass issued successfully' });
+    } catch (error) {
+        console.error('Issue Pass Error:', error.message);
+        res.status(500).json({ error: 'An error occurred while issuing the pass', details: error.message });
+    }
 });
+
 
 /**
  * @swagger
  * /retrievepass/{visitorId}:
  *   get:
- *     summary: Retrieve a visitor pass
- *     tags: [Pass]
+ *     summary: Retrieve visitor pass information
+ *     description: Retrieve information about a visitor's pass based on the visitor ID.
+ *     tags:
+ *       - Visitor
  *     parameters:
- *       - in: path
- *         name: visitorId
+ *       - name: visitorId
+ *         in: path
  *         required: true
+ *         description: ID of the visitor for whom to retrieve the pass information
  *         schema:
  *           type: string
- *         description: The visitor ID
  *     responses:
- *       200:
- *         description: Visitor pass details
- *       404:
+ *       '200':
+ *         description: Successfully retrieved visitor pass information
+ *       '404':
  *         description: No pass found for this visitor
- *       500:
- *         description: Error occurred while retrieving the pass
+ *       '500':
+ *         description: Internal Server Error
  */
 
-
-//Visitor to Retrieve Their Pass
-// Visitor Retrieve Pass
+// Visitor Retrieve Their Pass
 app.get('/retrievepass/:visitorId', async (req, res) => {
-  const visitorId = req.params.visitorId;
-
-  try {
-    const visitorPasses = db.collection('visitorpasses');
-    const pass = await visitorPasses.findOne({ visitorId });
-
-    if (!pass) {
-      return res.status(404).json({ error: 'No pass found for this visitor' });
+    const visitorId = req.params.visitorId;
+  
+    try {
+      const db = client.db("ApartmentVisitorManagement");
+      const visitorPasses = db.collection('VisitorPass'); // Use the correct collection name
+  
+      const pass = await visitorPasses.findOne({ visitorId }, { projection: { issuedAt: 0 } });
+      // The projection: { issuedAt: 0 } excludes the issuedAt field from the response
+  
+      if (!pass) {
+        return res.status(404).json({ error: 'No pass found for this visitor' });
+      }
+  
+      res.json(pass);
+    } catch (error) {
+      console.error('Retrieve Pass Error:', error.message);
+      res.status(500).json({ error: 'An error occurred while retrieving the pass', details: error.message });
     }
-
-    res.json(pass);
-  } catch (error) {
-    console.error('Retrieve Pass Error:', error.message);
-    res.status(500).json({ error: 'An error occurred while retrieving the pass', details: error.message });
-  }
 });
 
 
-/**
- * @swagger
- * /updatevisitor/{visitorId}:
- *   patch:
- *     summary: Update visitor details
- *     tags: [Visitor]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: visitorId
- *         required: true
- *         schema:
- *           type: string
- *         description: The visitor ID
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             $ref: '#/components/schemas/VisitorUpdate'
- *     responses:
- *       200:
- *         description: Visitor updated successfully
- *       404:
- *         description: No visitor found with this ID
- *       500:
- *         description: Error occurred while updating the visitor
- */
+
+//function generate token1 for admin
+function generateToken1(adminData)
+{
+  let token1 = jwt.sign
+  (
+    adminData,
+    'admin',
+    {expiresIn: '1h'}
+  );
+  return token1
+}
 
 
-//Update visitor
-app.patch('/updatevisitor/:visitorId', verifyToken, async (req, res) => {
-  const visitorId = req.params.visitorId;
-  const updateData = req.body;
+//function verifytoken1 (admin)
+function verifyToken1(req, res, next) {
+   let header = req.headers.authorization;
+ 
+   if (!header) {
+     return res.status(401).send("Authorization header missing");
+   }
+ 
+   let token1 = header.split(' ')[1];
+ 
+   jwt.verify(token1, 'admin', function (err, decoded) {
+     if (err) {
+       return res.status(403).send("Invalid Token");
+     }
+ 
+     req.user = decoded;
+     next();
+   });
+ }
 
-  try {
-    const updatedVisitor = await db.collection('visitors').updateOne(
-      { _id: new ObjectId(visitorId) }, // Use 'new' with ObjectId
-      { $set: updateData }
-    );
 
-    if (updatedVisitor.matchedCount === 0) {
-      return res.status(404).json({ message: 'No visitor found with this ID' });
-    }
 
-    res.json({ message: 'Visitor updated successfully', updatedVisitor });
-  } catch (error) {
-    console.error('Update error:', error); // Log the entire error object
-    res.status(500).json({ error: 'An error occurred while updating the visitor', details: error.toString() });
-  }
+///////////
+///////////////////
+////////////////
+
+
+
+
+
+ 
+  // app.listen(port, () => {
+  //   console.log(`Example app listening on port ${port}`)
+  // });
+
+  app.put('/users/:id', verifyToken1, (req, res) => {
+   const userId = req.params.id;
+   const visitor = req.body;
+ 
+   Visitorregistration.updateOne({ _id: new ObjectId(userId) }, { $set: visitor }, (err, result) => {
+     if (err) {
+       console.error('Error updating visitor:', err);
+       res.status(500).send('Internal Server Error');
+     } else {
+       res.send('Visitor updated successfully');
+     }
+   });
+ });
+ 
+// Delete a visitor (admin only)
+app.delete('/DeleteVisitor/:id', verifyToken1, (req, res) => {
+  const userId = req.params.id;
+
+  Visitorregistration
+    .deleteOne({ _id: new ObjectId(userId) })
+    .then(() => {
+      res.send('Visitor data deleted successfully');
+    })
+    .catch((error) => {
+      console.error('Error deleting visit detail:', error);
+      res.status(500).send('An error occurred while deleting the visit detail');
+    });
 });
 
-/**
- * @swagger
- * /deletevisitor/{visitorId}:
- *   delete:
- *     summary: Delete a visitor
- *     tags: [Visitor]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: visitorId
- *         required: true
- *         schema:
- *           type: string
- *         description: The visitor ID
- *     responses:
- *       200:
- *         description: Visitor deleted successfully
- *       404:
- *         description: No visitor found with this ID
- *       500:
- *         description: Error occurred while deleting the visitor
- */
 
-
-// Delete visitor
-app.delete('/deletevisitor/:visitorId', verifyToken, async (req, res) => {
-  const visitorId = req.params.visitorId;
-
-  try {
-    const deletionResult = await db.collection('visitors').deleteOne(
-      { _id: new ObjectId(visitorId) } // Use 'new' with ObjectId
-    );
-
-    if (deletionResult.deletedCount === 0) {
-      return res.status(404).json({ message: 'No visitor found with this ID' });
+//database for mainadmin
+adminuser
+// Example data in the Admin collection
+[
+    {
+      username: "aidazainuddin",
+      password: "123456"
     }
+  ]
 
-    res.json({ message: 'Visitor deleted successfully' });
-  } catch (error) {
-    console.error('Delete error:', error); // Log the entire error object
-    res.status(500).json({ error: 'An error occurred while deleting the visitor', details: error.toString() });
-  }
+//const port = 2000; // Declare the port here
+
+app.listen(port, () => {
+  console.log(`Example app listening on port ${port}`);
 });
-
-/**
- * @swagger
- * components:
- *   schemas:
- *     Visitor:
- *       type: object
- *       required:
- *         - Name
- *         - Age
- *         - Gender
- *         - Address
- *         - Zipcode
- *         - Relation
- *       properties:
- *         Name:
- *           type: string
- *         Age:
- *           type: integer
- *         Gender:
- *           type: string
- *         Address:
- *           type: string
- *         Zipcode:
- *           type: string
- *         Relation:
- *           type: string
- *     VisitorUpdate:
- *       type: object
- *       properties:
- *         Name:
- *           type: string
- *         Age:
- *           type: integer
- *         Gender:
- *           type: string
- *         Address:
- *           type: string
- *         Zipcode:
- *           type: string
- *         Relation:
- *           type: string
- */
-
